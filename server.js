@@ -293,26 +293,14 @@ function mcpConnectUrl(app) {
   return `https://connect.composio.dev/mcp?app=${encodeURIComponent(app)}`;
 }
 
+// For now, the Connect Instagram button just opens the Composio dashboard.
+// The programmatic initiate flow is flaky across API key shapes, so we let
+// the user complete the connection there and come back to click Refresh.
 app.post('/api/settings/composio/connect-instagram', async (req, res) => {
-  const mcpUrl = mcpConnectUrl('instagram');
-  if (!composio.isEnabled()) {
-    return res.json({ redirect_url: mcpUrl, source: 'mcp' });
-  }
-  try {
-    const r = await composio.initiateConnection('instagram');
-    return res.json({
-      redirect_url: r.redirect_url,
-      auth_config_id: r.auth_config_id,
-      connected_account_id: r.connected_account_id,
-      source: 'rest',
-    });
-  } catch (e) {
-    console.error('[settings] initiateConnection failed:', e.message);
-    return res.status(502).json({
-      error: e.message,
-      fallback_url: mcpUrl,
-    });
-  }
+  res.json({
+    redirect_url: 'https://dashboard.composio.dev/',
+    source: 'dashboard',
+  });
 });
 
 // Force a full fetch right now (useful right after connecting)

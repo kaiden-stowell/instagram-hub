@@ -331,8 +331,7 @@ document.getElementById('btn-connect-ig').addEventListener('click', async () => 
     const body = await resp.json().catch(() => ({}));
     if (resp.ok && body.redirect_url) {
       window.open(body.redirect_url, '_blank', 'noopener');
-      const label = body.source === 'rest' ? 'Instagram' : 'Composio';
-      showBanner('info', `Complete the ${label} login in the new tab, then come back and click Refresh now.`);
+      showBanner('info', 'Connect Instagram in the Composio dashboard, then come back and click Refresh now.');
       setTimeout(clearBanner, 8000);
     } else {
       const msg = body.error || 'Could not generate a connect link.';
