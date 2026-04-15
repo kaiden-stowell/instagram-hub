@@ -28,7 +28,7 @@ const clients = new Set();
 wss.on('connection', ws => {
   clients.add(ws);
   ws.on('close', () => clients.delete(ws));
-  ws.send(JSON.stringify({ event: 'hello', data: { mock: instagram.isMock() } }));
+  ws.send(JSON.stringify({ event: 'hello', data: { mode: instagram.getMode() } }));
 });
 
 function broadcast(event, data) {
@@ -42,7 +42,7 @@ runner.setBroadcast(broadcast);
 // ── Debug / status ─────────────────────────────────────────────────────
 app.get('/api/status', (req, res) => {
   res.json({
-    mode: instagram.isMock() ? 'mock' : 'live',
+    mode: instagram.getMode(),            // 'mock' | 'live' | 'composio'
     connected: instagram.isConnected(),
     claudeBin: runner.CLAUDE_BIN,
     claudeExists: require('fs').existsSync(runner.CLAUDE_BIN),
@@ -130,7 +130,7 @@ instagram.init();
 
 server.listen(PORT, HOST, () => {
   console.log(`\n  Instagram Hub running at http://${HOST}:${PORT}`);
-  console.log(`  Mode: ${instagram.isMock() ? 'MOCK' : 'LIVE'}`);
+  console.log(`  Mode: ${instagram.getMode().toUpperCase()}`);
   console.log(`  Claude binary: ${runner.CLAUDE_BIN}\n`);
 });
 

@@ -4,10 +4,13 @@ Dashboard for Instagram DMs, posts, and analytics — with a built-in Claude Cod
 chat that has live context about your account. Modeled on
 [agent-hub](https://github.com/kaiden-stowell/agent-hub).
 
-Runs in **mock mode** out of the box (fake accounts/DMs/posts/analytics that
-update in real time over WebSocket), so you can build out the UI and Claude
-flows without touching the Meta developer console. Drop in an
-`INSTAGRAM_TOKEN` to switch to live mode.
+Three data modes, picked automatically from `.env`:
+
+| Mode | When | How |
+|------|------|------|
+| **COMPOSIO** (recommended) | `COMPOSIO_API_KEY` is set | Pulls via [Composio](https://composio.dev) — no Meta developer app needed, one click to connect your IG account |
+| **LIVE** | `INSTAGRAM_TOKEN` is set | Direct Instagram Graph API calls |
+| **MOCK** | neither | Seeded fake account/DMs/posts/analytics, useful for demos + UI work |
 
 ## Requirements
 
@@ -50,7 +53,33 @@ The integration-module pattern (`init`, `setBroadcast`, `sendDirectMessage`,
 `agent-hub/imessage.js`, so dropping in additional platforms later
 (Threads, TikTok, etc.) is straightforward.
 
-## Going live
+## Connecting Instagram via Composio (recommended)
+
+Composio handles the Meta OAuth dance for you — no Meta developer app required.
+
+1. Create a Composio account at <https://app.composio.dev> and grab an API key
+   from the Developers page.
+2. In the Composio dashboard, connect your Instagram Business/Creator account
+   (Apps → Instagram → Connect).
+3. Paste the key into `.env`:
+   ```
+   COMPOSIO_API_KEY=sk_...
+   COMPOSIO_USER_ID=default
+   ```
+4. Restart — `npm start`. On boot you'll see `Mode: COMPOSIO` and the server
+   will pull profile, media (30 most recent), insights (last 30 days),
+   conversations, and messages every 60s.
+
+Behind the scenes, instagram-hub executes these Composio tools directly via
+its REST API (`backend.composio.dev/api/v3/tools/execute/<slug>`):
+
+- `INSTAGRAM_GET_USER_INFO` — profile + follower counts
+- `INSTAGRAM_GET_IG_USER_MEDIA` — recent posts
+- `INSTAGRAM_GET_USER_INSIGHTS` — reach, follower_count, engagement
+- `INSTAGRAM_LIST_ALL_CONVERSATIONS` / `INSTAGRAM_LIST_ALL_MESSAGES` — DMs
+- `INSTAGRAM_SEND_TEXT_MESSAGE` — reply composer
+
+## Going live via Meta directly (alternative)
 
 1. Create a Meta developer app and link an Instagram Business/Creator account
    to a Facebook Page.
@@ -59,11 +88,6 @@ The integration-module pattern (`init`, `setBroadcast`, `sendDirectMessage`,
    `pages_show_list`.
 3. Set `INSTAGRAM_TOKEN` and `INSTAGRAM_BUSINESS_ID` in `.env`.
 4. Restart — the server will poll `graph.instagram.com` every 60s.
-
-DM send/receive uses the Instagram Messaging API and requires
-`instagram_manage_messages` permission (Meta App Review). The code for
-`fetchThreads()` in `instagram.js` is stubbed until those permissions are
-approved — wire up the `/me/conversations` endpoint there.
 
 ## Endpoints
 

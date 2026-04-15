@@ -269,8 +269,8 @@ function setConn(cls, text) {
 
 function handleWs({ event, data }) {
   if (event === 'hello') {
-    state.mock = data.mock;
-    document.getElementById('mode-badge').textContent = data.mock ? 'MOCK MODE' : 'LIVE';
+    state.mock = data.mode === 'mock';
+    document.getElementById('mode-badge').textContent = (data.mode || 'mock').toUpperCase() + ' MODE';
   }
   if (event === 'dm:message') {
     if (state.view === 'dms') loadDms();
@@ -314,7 +314,7 @@ function escape(s) {
   try {
     const status = await GET('/api/status');
     state.mock = status.mode === 'mock';
-    document.getElementById('mode-badge').textContent = status.mode === 'mock' ? 'MOCK MODE' : 'LIVE';
+    document.getElementById('mode-badge').textContent = (status.mode || 'mock').toUpperCase() + ' MODE';
   } catch {}
   connectWs();
   showView('overview');
