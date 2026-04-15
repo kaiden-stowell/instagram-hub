@@ -134,6 +134,13 @@ body { display: flex; }
 .analytics-table th { background: var(--panel-2); color: var(--text-dim); font-weight: 600;
   text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
 
+/* ── Empty state ─────────────────────────────────── */
+.empty-state { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 40px 32px; margin-bottom: 24px; text-align: center;
+  background-image: linear-gradient(135deg, rgba(225,48,108,0.08), rgba(131,58,180,0.08)); }
+.empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.empty-sub { color: var(--text-dim); font-size: 13px; margin-bottom: 20px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
 /* ── Settings ─────────────────────────────────── */
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
   padding: 24px; max-width: 640px; }

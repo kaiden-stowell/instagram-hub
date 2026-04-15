@@ -54,6 +54,22 @@ async function loadOverview() {
   renderStats(stats);
   renderAccount(state.account);
   renderOverviewPosts(posts.slice(0, 6));
+  renderEmptyStateIfNeeded(accounts.length === 0);
+}
+
+function renderEmptyStateIfNeeded(empty) {
+  const host = document.querySelector('.view[data-view="overview"]');
+  const existing = host.querySelector('.empty-state');
+  if (!empty) { if (existing) existing.remove(); return; }
+  if (existing) return;
+  const el = document.createElement('div');
+  el.className = 'empty-state';
+  el.innerHTML = `
+    <div class="empty-title">No Instagram account connected</div>
+    <div class="empty-sub">Connect your Instagram Business or Creator account via Composio to start pulling DMs, posts, and analytics.</div>
+    <button class="btn" id="btn-go-settings">Open Settings →</button>`;
+  host.prepend(el);
+  el.querySelector('#btn-go-settings').addEventListener('click', () => showView('settings'));
 }
 
 function renderStats(s) {
@@ -363,7 +379,7 @@ function setConn(cls, text) {
 function handleWs({ event, data }) {
   if (event === 'hello') {
     state.mock = data.mode === 'mock';
-    document.getElementById('mode-badge').textContent = (data.mode || 'mock').toUpperCase() + ' MODE';
+    document.getElementById('mode-badge').textContent = modeLabel(data.mode);
   }
   if (event === 'dm:message') {
     if (state.view === 'dms') loadDms();
@@ -395,6 +411,12 @@ function handleWs({ event, data }) {
     state.chats = [];
     if (state.view === 'chat') renderChat();
   }
+}
+
+function modeLabel(m) {
+  if (m === 'composio') return 'COMPOSIO';
+  if (m === 'live')     return 'LIVE';
+  return 'NOT CONNECTED';
 }
 
 // ── Utilities ───────────────────────────────────────────────────────────
@@ -467,7 +489,7 @@ async function pollAfterUpdate(attempt = 0) {
   try {
     const status = await GET('/api/status');
     state.mock = status.mode === 'mock';
-    document.getElementById('mode-badge').textContent = (status.mode || 'mock').toUpperCase() + ' MODE';
+    document.getElementById('mode-badge').textContent = modeLabel(status.mode);
     document.getElementById('version-label').textContent = 'v' + (status.version || '—');
   } catch {}
   connectWs();
