@@ -83,22 +83,74 @@ async function listConnections(toolkit) {
   }
 }
 
+// ── Auth configs ────────────────────────────────────────────────────────
+// Composio v3 requires an auth_config to exist before you can initiate a
+// connection. We find-or-create a composio-managed one per toolkit so the
+// user doesn't have to set anything up in the Composio dashboard first.
+async function findOrCreateAuthConfig(toolkit) {
+  // Try to reuse an existing one
+  try {
+    const r = await _request('GET', `/api/v3/auth_configs?toolkit_slug=${encodeURIComponent(toolkit)}`);
+    const items = r?.items || r?.data || [];
+    if (items.length) return items[0].id || items[0].nanoid;
+  } catch {}
+
+  // Create a new composio-managed auth config
+  try {
+    const r = await _request('POST', '/api/v3/auth_configs', {
+      toolkit: { slug: toolkit },
+      auth_config: {
+        type: 'use_composio_managed_auth',
+        name: `instagram-hub/${toolkit}`,
+      },
+    });
+    const id = r?.auth_config?.id || r?.data?.auth_config?.id || r?.id;
+    if (id) return id;
+  } catch (e) {
+    throw new Error(`auth_config create failed: ${e.message}`);
+  }
+  throw new Error('auth_config create returned no id');
+}
+
 // Initiate a new OAuth connection for a toolkit. Returns { redirect_url } on success.
 async function initiateConnection(toolkit) {
   const userId = process.env.COMPOSIO_USER_ID?.trim() || 'default';
-  // Composio v3 uses different endpoints across SDKs — try the common ones.
-  const candidates = [
-    { path: '/api/v3/connected_accounts/link', body: { toolkit, user_id: userId } },
-    { path: '/api/v3/toolkits/' + toolkit + '/connect', body: { user_id: userId } },
+  const authConfigId = await findOrCreateAuthConfig(toolkit);
+
+  // v3 shape — wraps connection metadata under { auth_config, connection }
+  // We try a couple of body variants because the SDKs use slightly different
+  // envelopes for the same endpoint.
+  const bodyVariants = [
+    {
+      auth_config: { id: authConfigId },
+      connection: {
+        user_id: userId,
+        state: { authScheme: 'OAUTH2', val: { status: 'INITIATING' } },
+      },
+    },
+    {
+      auth_config_id: authConfigId,
+      user_id: userId,
+      config: { auth_scheme: 'OAUTH2' },
+    },
   ];
-  for (const c of candidates) {
+
+  for (const body of bodyVariants) {
     try {
-      const resp = await _request('POST', c.path, c.body);
-      const url = resp?.redirect_url || resp?.data?.redirect_url || resp?.url;
-      if (url) return { redirect_url: url };
-    } catch {}
+      const resp = await _request('POST', '/api/v3/connected_accounts', body);
+      const url =
+        resp?.connectionData?.val?.redirectUrl ||
+        resp?.redirect_url ||
+        resp?.redirectUrl ||
+        resp?.data?.redirect_url ||
+        resp?.connected_account?.redirect_url;
+      if (url) return { redirect_url: url, auth_config_id: authConfigId };
+    } catch (e) {
+      // Log and try next body shape
+      console.error('[composio] initiate variant failed:', e.message);
+    }
   }
-  throw new Error('Could not initiate Composio connection — open app.composio.dev and add Instagram manually.');
+  throw new Error('Composio did not return a redirect_url — check your API key and that the Instagram toolkit supports composio-managed auth.');
 }
 
-module.exports = { isEnabled, execute, listConnections, initiateConnection };
+module.exports = { isEnabled, execute, listConnections, initiateConnection, findOrCreateAuthConfig };

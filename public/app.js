@@ -324,13 +324,21 @@ document.getElementById('btn-connect-ig').addEventListener('click', async () => 
   const btn = document.getElementById('btn-connect-ig');
   btn.disabled = true;
   try {
-    const r = await POST('/api/settings/composio/connect-instagram');
-    if (r.redirect_url) {
-      window.open(r.redirect_url, '_blank', 'noopener');
-      showBanner('info', 'Complete the Instagram auth in the new tab, then click Refresh here.');
-      setTimeout(clearBanner, 6000);
+    // Raw fetch so we can inspect non-2xx bodies
+    const r = await fetch('/api/settings/composio/connect-instagram', { method: 'POST' });
+    const body = await r.json().catch(() => ({}));
+    if (r.ok && body.redirect_url) {
+      window.open(body.redirect_url, '_blank', 'noopener');
+      showBanner('info', 'Complete the Instagram login in the new tab, then come back and click Refresh now.');
+      setTimeout(clearBanner, 8000);
+    } else {
+      const msg = body.error || 'Composio did not return a redirect URL';
+      if (body.fallback_url && confirm(`${msg}\n\nOpen the Composio dashboard instead to connect Instagram manually?`)) {
+        window.open(body.fallback_url, '_blank', 'noopener');
+      } else {
+        alert(msg);
+      }
     }
-    if (r.error) alert(r.error);
   } catch (e) { alert('Connect failed: ' + e.message); }
   btn.disabled = false;
 });

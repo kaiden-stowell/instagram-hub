@@ -288,10 +288,13 @@ app.post('/api/settings/composio/connect-instagram', async (req, res) => {
   try {
     if (!composio.isEnabled()) return res.status(400).json({ error: 'Set your Composio API key first.' });
     const r = await composio.initiateConnection('instagram');
-    res.json({ redirect_url: r.redirect_url });
+    res.json({ redirect_url: r.redirect_url, auth_config_id: r.auth_config_id });
   } catch (e) {
     console.error('[settings] connect-instagram failed:', e.message);
-    res.json({ redirect_url: 'https://app.composio.dev/apps/instagram', error: e.message });
+    res.status(502).json({
+      error: e.message,
+      fallback_url: 'https://app.composio.dev/apps/instagram',
+    });
   }
 });
 
