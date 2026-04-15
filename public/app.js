@@ -327,20 +327,15 @@ document.getElementById('btn-connect-ig').addEventListener('click', async () => 
   const btn = document.getElementById('btn-connect-ig');
   btn.disabled = true;
   try {
-    // Raw fetch so we can inspect non-2xx bodies
-    const r = await fetch('/api/settings/composio/connect-instagram', { method: 'POST' });
-    const body = await r.json().catch(() => ({}));
-    if (r.ok && body.redirect_url) {
-      window.open(body.redirect_url, '_blank', 'noopener');
-      showBanner('info', 'Complete the Instagram login in the new tab, then come back and click Refresh now.');
+    const r = await POST('/api/settings/composio/connect-instagram');
+    const url = r.redirect_url;
+    if (url) {
+      window.open(url, '_blank', 'noopener');
+      const label = r.source === 'rest' ? 'Instagram' : 'Composio';
+      showBanner('info', `Complete the ${label} login in the new tab, then come back and click Refresh now.`);
       setTimeout(clearBanner, 8000);
     } else {
-      const msg = body.error || 'Composio did not return a redirect URL';
-      if (body.fallback_url && confirm(`${msg}\n\nOpen the Composio dashboard instead to connect Instagram manually?`)) {
-        window.open(body.fallback_url, '_blank', 'noopener');
-      } else {
-        alert(msg);
-      }
+      alert(r.error || 'Could not generate a connect link.');
     }
   } catch (e) { alert('Connect failed: ' + e.message); }
   btn.disabled = false;
@@ -447,13 +442,21 @@ function clearBanner() { document.querySelector('.banner')?.remove(); }
 async function checkForUpdates() {
   try {
     const r = await GET('/api/update/check');
-    document.getElementById('version-label').textContent = 'v' + (r.local || '—');
+    const label = 'v' + (r.local || '—');
+    document.getElementById('version-label').textContent = label;
+    const chip = document.getElementById('version-chip');
     const btn = document.getElementById('btn-update');
     const sub = document.getElementById('version-sub');
     if (r.updateAvailable) {
+      chip.textContent = `v${r.local} → v${r.remote}`;
+      chip.classList.add('update');
+      chip.title = `Update to v${r.remote}`;
       btn.hidden = false;
       sub.textContent = `v${r.remote} available`;
     } else {
+      chip.textContent = label;
+      chip.classList.remove('update');
+      chip.title = 'Up to date';
       btn.hidden = true;
       sub.textContent = r.remote ? 'up to date' : '';
     }
@@ -461,6 +464,11 @@ async function checkForUpdates() {
     document.getElementById('version-sub').textContent = 'check failed';
   }
 }
+
+document.getElementById('version-chip').addEventListener('click', () => {
+  const chip = document.getElementById('version-chip');
+  if (chip.classList.contains('update')) document.getElementById('btn-update').click();
+});
 
 document.getElementById('btn-update').addEventListener('click', async () => {
   if (!confirm('Pull the latest version from GitHub and restart the server?')) return;
@@ -502,6 +510,7 @@ async function pollAfterUpdate(attempt = 0) {
     state.mock = status.mode === 'mock';
     document.getElementById('mode-badge').textContent = modeLabel(status.mode);
     document.getElementById('version-label').textContent = 'v' + (status.version || '—');
+    document.getElementById('version-chip').textContent = 'v' + (status.version || '—');
   } catch {}
   connectWs();
   showView('overview');

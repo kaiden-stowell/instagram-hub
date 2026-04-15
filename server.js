@@ -284,18 +284,29 @@ app.delete('/api/settings/composio', (req, res) => {
 
 // Initiate a new Instagram OAuth connection via Composio.
 // Returns a redirect_url the user opens to authorize.
+// Generate a direct Composio MCP connect link for a given app/toolkit.
+// Primary path: open https://connect.composio.dev/mcp?app=<slug> so Composio
+// hosts the app-specific OAuth landing. If the user has an API key we also
+// attempt to initiate a programmatic connection that produces the real
+// provider OAuth URL (e.g. instagram.com/accounts/login/...).
+function mcpConnectUrl(app) {
+  return `https://connect.composio.dev/mcp?app=${encodeURIComponent(app)}`;
+}
+
 app.post('/api/settings/composio/connect-instagram', async (req, res) => {
-  try {
-    if (!composio.isEnabled()) return res.status(400).json({ error: 'Set your Composio API key first.' });
-    const r = await composio.initiateConnection('instagram');
-    res.json({ redirect_url: r.redirect_url, auth_config_id: r.auth_config_id });
-  } catch (e) {
-    console.error('[settings] connect-instagram failed:', e.message);
-    res.status(502).json({
-      error: e.message,
-      fallback_url: 'https://dashboard.composio.dev/',
-    });
+  const mcpUrl = mcpConnectUrl('instagram');
+  // Best effort: try the programmatic initiate flow first so the user lands
+  // on the real IG OAuth page. If that errors, send them through the MCP
+  // connect page which handles auth config creation for us.
+  if (composio.isEnabled()) {
+    try {
+      const r = await composio.initiateConnection('instagram');
+      return res.json({ redirect_url: r.redirect_url, source: 'rest', fallback_url: mcpUrl });
+    } catch (e) {
+      console.error('[settings] initiateConnection failed, falling back to MCP link:', e.message);
+    }
   }
+  res.json({ redirect_url: mcpUrl, source: 'mcp' });
 });
 
 // Force a full fetch right now (useful right after connecting)
