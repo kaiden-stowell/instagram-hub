@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Instagram Hub</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="logo">IG</div>
+      <div>
+        <div class="brand-title">Instagram Hub</div>
+        <div class="brand-sub" id="mode-badge">—</div>
+      </div>
+    </div>
+
+    <ul class="nav">
+      <li class="nav-link active" data-view="overview">
+        <span class="icon">●</span> Overview
+      </li>
+      <li class="nav-link" data-view="dms">
+        <span class="icon">✉</span> Direct Messages
+        <span class="badge" id="dm-badge" hidden></span>
+      </li>
+      <li class="nav-link" data-view="posts">
+        <span class="icon">▦</span> Posts
+      </li>
+      <li class="nav-link" data-view="analytics">
+        <span class="icon">◈</span> Analytics
+      </li>
+      <li class="nav-link" data-view="chat">
+        <span class="icon">✦</span> Ask Claude
+      </li>
+    </ul>
+
+    <div class="conn" id="conn">connecting…</div>
+  </nav>
+
+  <main class="content">
+    <!-- Overview -->
+    <section class="view" data-view="overview">
+      <header class="view-header">
+        <h1>Overview</h1>
+        <button class="btn" id="btn-refresh">Refresh</button>
+      </header>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Followers</div><div class="stat-value" id="s-followers">—</div></div>
+        <div class="stat"><div class="stat-label">Reach</div><div class="stat-value" id="s-reach">—</div></div>
+        <div class="stat"><div class="stat-label">Impressions</div><div class="stat-value" id="s-impressions">—</div></div>
+        <div class="stat"><div class="stat-label">Engagement</div><div class="stat-value" id="s-engagement">—</div></div>
+        <div class="stat"><div class="stat-label">Posts</div><div class="stat-value" id="s-posts">—</div></div>
+        <div class="stat"><div class="stat-label">Unread DMs</div><div class="stat-value" id="s-unread">—</div></div>
+      </div>
+
+      <h2>Account</h2>
+      <div class="account-card" id="account-card">—</div>
+
+      <h2>Latest posts</h2>
+      <div class="post-grid" id="overview-posts"></div>
+    </section>
+
+    <!-- DMs -->
+    <section class="view" data-view="dms" hidden>
+      <header class="view-header"><h1>Direct Messages</h1></header>
+      <div class="dm-layout">
+        <aside class="thread-list" id="thread-list"></aside>
+        <div class="thread-view">
+          <div class="thread-header" id="thread-header">Select a conversation</div>
+          <div class="messages" id="messages"></div>
+          <form class="composer" id="composer">
+            <input type="text" id="composer-input" placeholder="Reply…" autocomplete="off" disabled />
+            <button type="submit" class="btn" disabled>Send</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Posts -->
+    <section class="view" data-view="posts" hidden>
+      <header class="view-header"><h1>Posts</h1></header>
+      <div class="post-grid" id="post-grid"></div>
+    </section>
+
+    <!-- Analytics -->
+    <section class="view" data-view="analytics" hidden>
+      <header class="view-header"><h1>Analytics</h1></header>
+      <div class="stat-grid" id="analytics-stats"></div>
+      <h2>Followers — last 14 snapshots</h2>
+      <div class="chart" id="chart-followers"></div>
+      <h2>Reach vs impressions</h2>
+      <div class="chart" id="chart-reach"></div>
+      <h2>Snapshots</h2>
+      <table class="analytics-table" id="analytics-table"></table>
+    </section>
+
+    <!-- Chat -->
+    <section class="view" data-view="chat" hidden>
+      <header class="view-header">
+        <h1>Ask Claude</h1>
+        <button class="btn btn-subtle" id="btn-clear-chat">Clear</button>
+      </header>
+      <p class="chat-hint">Claude has live context about your account — followers, recent posts, analytics, and DM activity. Ask anything.</p>
+      <div class="chat" id="chat"></div>
+      <form class="composer" id="chat-composer">
+        <input type="text" id="chat-input" placeholder="e.g. which post had the best engagement last week?" autocomplete="off" />
+        <button type="submit" class="btn">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
