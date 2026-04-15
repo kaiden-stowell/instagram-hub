@@ -309,13 +309,76 @@ function escape(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ── Update flow ────────────────────────────────────────────────────────
+function showBanner(cls, text) {
+  let el = document.querySelector('.banner');
+  if (!el) { el = document.createElement('div'); document.body.appendChild(el); }
+  el.className = 'banner ' + cls;
+  el.textContent = text;
+}
+function clearBanner() { document.querySelector('.banner')?.remove(); }
+
+async function checkForUpdates() {
+  try {
+    const r = await GET('/api/update/check');
+    document.getElementById('version-label').textContent = 'v' + (r.local || '—');
+    const btn = document.getElementById('btn-update');
+    const sub = document.getElementById('version-sub');
+    if (r.updateAvailable) {
+      btn.hidden = false;
+      sub.textContent = `v${r.remote} available`;
+    } else {
+      btn.hidden = true;
+      sub.textContent = r.remote ? 'up to date' : '';
+    }
+  } catch (e) {
+    document.getElementById('version-sub').textContent = 'check failed';
+  }
+}
+
+document.getElementById('btn-update').addEventListener('click', async () => {
+  if (!confirm('Pull the latest version from GitHub and restart the server?')) return;
+  const btn = document.getElementById('btn-update');
+  btn.disabled = true;
+  showBanner('info', 'Updating — pulling latest from GitHub…');
+  try {
+    const r = await POST('/api/update/apply');
+    if (r.ok) {
+      showBanner('ok', `Updated to v${r.version} — restarting…`);
+      // Poll /api/status until server comes back up, then reload
+      setTimeout(pollAfterUpdate, 2500);
+    } else {
+      showBanner('err', 'Update failed: ' + (r.error || 'unknown'));
+      btn.disabled = false;
+    }
+  } catch (e) {
+    // Server probably killed the socket during restart — treat as success and poll
+    showBanner('ok', 'Restarting…');
+    setTimeout(pollAfterUpdate, 2500);
+  }
+});
+
+async function pollAfterUpdate(attempt = 0) {
+  if (attempt > 30) { showBanner('err', 'Server did not come back up. Check logs.'); return; }
+  try {
+    const r = await GET('/api/status');
+    showBanner('ok', `Updated to v${r.version} — reloading`);
+    setTimeout(() => location.reload(), 800);
+  } catch {
+    setTimeout(() => pollAfterUpdate(attempt + 1), 1000);
+  }
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────
 (async function boot() {
   try {
     const status = await GET('/api/status');
     state.mock = status.mode === 'mock';
     document.getElementById('mode-badge').textContent = (status.mode || 'mock').toUpperCase() + ' MODE';
+    document.getElementById('version-label').textContent = 'v' + (status.version || '—');
   } catch {}
   connectWs();
   showView('overview');
+  checkForUpdates();
+  setInterval(checkForUpdates, 10 * 60 * 1000); // re-check every 10 min
 })();

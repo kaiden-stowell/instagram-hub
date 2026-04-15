@@ -39,11 +39,140 @@ function broadcast(event, data) {
 instagram.setBroadcast(broadcast);
 runner.setBroadcast(broadcast);
 
+// ── Version + update ───────────────────────────────────────────────────
+const REPO_API_URL = 'https://api.github.com/repos/kaiden-stowell/instagram-hub/contents/version.json?ref=main';
+let cachedRemoteVersion = null;
+let lastVersionCheck = 0;
+
+function getLocalVersion() {
+  try {
+    return JSON.parse(require('fs').readFileSync(path.join(__dirname, 'version.json'), 'utf8')).version;
+  } catch { return 'unknown'; }
+}
+
+app.get('/api/version', (req, res) => res.json({ version: getLocalVersion() }));
+
+app.get('/api/update/check', async (req, res) => {
+  try {
+    const localVersion = getLocalVersion();
+    const forceCheck = req.query.force === '1';
+    if (!forceCheck && Date.now() - lastVersionCheck < 120000 && cachedRemoteVersion) {
+      return res.json({ local: localVersion, remote: cachedRemoteVersion, updateAvailable: cachedRemoteVersion !== localVersion });
+    }
+    const https = require('https');
+    const data = await new Promise((resolve, reject) => {
+      const r = https.get(REPO_API_URL, {
+        headers: { 'User-Agent': 'instagram-hub', 'Accept': 'application/vnd.github.v3+json' },
+        timeout: 10000,
+      }, resp => {
+        if (resp.statusCode !== 200) { reject(new Error(`GitHub API returned ${resp.statusCode}`)); resp.resume(); return; }
+        let d = ''; resp.on('data', c => d += c); resp.on('end', () => resolve(d));
+      });
+      r.on('error', reject);
+      r.on('timeout', () => { r.destroy(); reject(new Error('Request timed out')); });
+    });
+    const json = JSON.parse(data);
+    if (!json.content) throw new Error('No content in GitHub response');
+    const content = Buffer.from(json.content, 'base64').toString('utf8');
+    const remote = JSON.parse(content).version;
+    cachedRemoteVersion = remote;
+    lastVersionCheck = Date.now();
+    res.json({ local: localVersion, remote, updateAvailable: remote !== localVersion });
+  } catch (e) {
+    console.error('[update] check failed:', e.message);
+    res.json({ local: getLocalVersion(), remote: null, updateAvailable: false, error: e.message });
+  }
+});
+
+app.post('/api/update/apply', (req, res) => {
+  const fs = require('fs');
+  const { execSync } = require('child_process');
+  const gitDir = path.join(__dirname, '.git');
+  if (!fs.existsSync(gitDir)) {
+    return res.status(400).json({ error: 'Not a git repo. Run the install script first.' });
+  }
+  try {
+    // Backup user data before updating
+    const dataDir = path.join(__dirname, 'data');
+    const backupRoot = path.join(__dirname, 'backups');
+    const backupDir = path.join(backupRoot, 'pre-update_' + new Date().toISOString().replace(/[:.]/g, '-'));
+    fs.mkdirSync(backupDir, { recursive: true });
+    if (fs.existsSync(dataDir)) {
+      const dataBackup = path.join(backupDir, 'data');
+      fs.mkdirSync(dataBackup, { recursive: true });
+      for (const f of fs.readdirSync(dataDir)) {
+        try { fs.copyFileSync(path.join(dataDir, f), path.join(dataBackup, f)); } catch {}
+      }
+    }
+    const envFile = path.join(__dirname, '.env');
+    if (fs.existsSync(envFile)) fs.copyFileSync(envFile, path.join(backupDir, '.env'));
+    console.log('[update] backup saved to ' + backupDir);
+
+    // Make sure remote points at the right repo
+    try {
+      const currentRemote = execSync('git remote get-url origin', { cwd: __dirname, stdio: 'pipe', timeout: 5000 }).toString().trim();
+      if (!currentRemote.includes('instagram-hub')) {
+        execSync('git remote set-url origin https://github.com/kaiden-stowell/instagram-hub.git', { cwd: __dirname, stdio: 'pipe', timeout: 5000 });
+      }
+    } catch {
+      try { execSync('git remote add origin https://github.com/kaiden-stowell/instagram-hub.git', { cwd: __dirname, stdio: 'pipe', timeout: 5000 }); } catch {}
+    }
+
+    // Stash local tracked changes before pulling
+    try { execSync('git stash', { cwd: __dirname, stdio: 'pipe', timeout: 10000 }); } catch {}
+
+    // Fast-forward if possible, otherwise fetch + hard reset
+    try {
+      execSync('git pull --ff-only origin main', { cwd: __dirname, stdio: 'pipe', timeout: 30000 });
+    } catch {
+      console.log('[update] ff failed, fetch + reset...');
+      execSync('git fetch origin main', { cwd: __dirname, stdio: 'pipe', timeout: 30000 });
+      execSync('git reset --hard origin/main', { cwd: __dirname, stdio: 'pipe', timeout: 10000 });
+    }
+
+    // npm install in case dependencies changed
+    try {
+      execSync('npm install --production --silent', { cwd: __dirname, stdio: 'pipe', timeout: 120000 });
+    } catch (e) {
+      console.error('[update] npm install failed:', e.message);
+    }
+
+    // Verify db survived
+    const dbFile    = path.join(dataDir, 'db.json');
+    const dbBackup  = path.join(backupDir, 'data', 'db.json');
+    if (fs.existsSync(dbBackup)) {
+      let ok = false;
+      try { ok = !!JSON.parse(fs.readFileSync(dbFile, 'utf8')); } catch {}
+      if (!ok) {
+        console.log('[update] db missing/corrupt after update — restoring');
+        fs.mkdirSync(dataDir, { recursive: true });
+        fs.copyFileSync(dbBackup, dbFile);
+      }
+    }
+
+    const newVersion = getLocalVersion();
+    cachedRemoteVersion = null;
+    lastVersionCheck = 0;
+    broadcast('update:applied', { version: newVersion });
+    res.json({ ok: true, version: newVersion, restarting: true });
+
+    // Restart — launchd will bring us back up
+    setTimeout(() => {
+      console.log('[update] restarting after update…');
+      process.exit(0);
+    }, 1000);
+  } catch (e) {
+    console.error('[update] apply failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Debug / status ─────────────────────────────────────────────────────
 app.get('/api/status', (req, res) => {
   res.json({
     mode: instagram.getMode(),            // 'mock' | 'live' | 'composio'
     connected: instagram.isConnected(),
+    version: getLocalVersion(),
     claudeBin: runner.CLAUDE_BIN,
     claudeExists: require('fs').existsSync(runner.CLAUDE_BIN),
     node: process.version,

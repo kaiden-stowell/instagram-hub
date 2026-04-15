@@ -42,6 +42,21 @@ body { display: flex; }
 .conn.ok  { color: var(--ok); }
 .conn.err { color: var(--err); }
 
+.version { padding: 12px 20px; font-size: 11px; color: var(--text-dim); border-top: 1px solid var(--border); }
+.version-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.version-sub { margin-top: 4px; font-size: 10px; color: var(--text-dim); }
+.update-btn { background: var(--accent); color: white; border: none; border-radius: 6px;
+  padding: 4px 10px; font-size: 10px; font-weight: 700; cursor: pointer; text-transform: uppercase;
+  letter-spacing: 0.5px; }
+.update-btn:hover { opacity: 0.9; }
+.update-btn:disabled { opacity: 0.5; cursor: wait; }
+
+.banner { position: fixed; top: 0; left: 0; right: 0; padding: 12px 24px; text-align: center;
+  font-size: 13px; font-weight: 600; z-index: 1000; color: white; }
+.banner.info { background: var(--accent); }
+.banner.ok   { background: var(--ok); color: #042; }
+.banner.err  { background: var(--err); }
+
 /* ── Content ─────────────────────────────────── */
 .content { flex: 1; overflow-y: auto; padding: 32px 40px; }
 .view-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
