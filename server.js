@@ -295,18 +295,24 @@ function mcpConnectUrl(app) {
 
 app.post('/api/settings/composio/connect-instagram', async (req, res) => {
   const mcpUrl = mcpConnectUrl('instagram');
-  // Best effort: try the programmatic initiate flow first so the user lands
-  // on the real IG OAuth page. If that errors, send them through the MCP
-  // connect page which handles auth config creation for us.
-  if (composio.isEnabled()) {
-    try {
-      const r = await composio.initiateConnection('instagram');
-      return res.json({ redirect_url: r.redirect_url, source: 'rest', fallback_url: mcpUrl });
-    } catch (e) {
-      console.error('[settings] initiateConnection failed, falling back to MCP link:', e.message);
-    }
+  if (!composio.isEnabled()) {
+    return res.json({ redirect_url: mcpUrl, source: 'mcp' });
   }
-  res.json({ redirect_url: mcpUrl, source: 'mcp' });
+  try {
+    const r = await composio.initiateConnection('instagram');
+    return res.json({
+      redirect_url: r.redirect_url,
+      auth_config_id: r.auth_config_id,
+      connected_account_id: r.connected_account_id,
+      source: 'rest',
+    });
+  } catch (e) {
+    console.error('[settings] initiateConnection failed:', e.message);
+    return res.status(502).json({
+      error: e.message,
+      fallback_url: mcpUrl,
+    });
+  }
 });
 
 // Force a full fetch right now (useful right after connecting)

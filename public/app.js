@@ -327,15 +327,19 @@ document.getElementById('btn-connect-ig').addEventListener('click', async () => 
   const btn = document.getElementById('btn-connect-ig');
   btn.disabled = true;
   try {
-    const r = await POST('/api/settings/composio/connect-instagram');
-    const url = r.redirect_url;
-    if (url) {
-      window.open(url, '_blank', 'noopener');
-      const label = r.source === 'rest' ? 'Instagram' : 'Composio';
+    const resp = await fetch('/api/settings/composio/connect-instagram', { method: 'POST' });
+    const body = await resp.json().catch(() => ({}));
+    if (resp.ok && body.redirect_url) {
+      window.open(body.redirect_url, '_blank', 'noopener');
+      const label = body.source === 'rest' ? 'Instagram' : 'Composio';
       showBanner('info', `Complete the ${label} login in the new tab, then come back and click Refresh now.`);
       setTimeout(clearBanner, 8000);
     } else {
-      alert(r.error || 'Could not generate a connect link.');
+      const msg = body.error || 'Could not generate a connect link.';
+      const useFallback = body.fallback_url &&
+        confirm(`${msg}\n\nOpen the generic Composio connect page as a fallback?`);
+      if (useFallback) window.open(body.fallback_url, '_blank', 'noopener');
+      else alert(msg);
     }
   } catch (e) { alert('Connect failed: ' + e.message); }
   btn.disabled = false;
