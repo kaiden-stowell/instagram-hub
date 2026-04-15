@@ -4,30 +4,47 @@ Dashboard for Instagram DMs, posts, and analytics — with a built-in Claude Cod
 chat that has live context about your account. Modeled on
 [agent-hub](https://github.com/kaiden-stowell/agent-hub).
 
-Three data modes, picked automatically from `.env`:
+Two data modes, picked automatically from `.env`:
 
 | Mode | When | How |
 |------|------|------|
-| **COMPOSIO** (recommended) | `COMPOSIO_API_KEY` is set | Pulls via [Composio](https://composio.dev) — no Meta developer app needed, one click to connect your IG account |
+| **COMPOSIO** (recommended) | `COMPOSIO_API_KEY` is set | Pulls via [Composio](https://composio.dev) — no Meta developer app needed, one click to connect your IG account from the dashboard |
 | **LIVE** | `INSTAGRAM_TOKEN` is set | Direct Instagram Graph API calls |
-| **MOCK** | neither | Seeded fake account/DMs/posts/analytics, useful for demos + UI work |
 
-## Requirements
+If neither is set, the dashboard boots in an empty "not connected" state and
+walks you through connecting via Composio in the Settings tab.
+
+## Install (one-liner)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kaiden-stowell/instagram-hub/main/install.sh | bash
+```
+
+Installs to `~/instagram-hub`, runs as a launchd background service on macOS,
+auto-starts on boot, and preserves `.env` + `data/` on reinstall/upgrade.
+
+Open <http://127.0.0.1:12790> once it finishes.
+
+### Updating
+
+Re-run the same curl command, or click the **Update** button in the sidebar
+footer of the dashboard (appears when a newer version is on `main`).
+
+### Requirements
 
 - Node.js 18+ and npm
 - Claude Code CLI (`claude`) on your PATH — used for the "Ask Claude" panel
-- (optional) Instagram Graph API token + business account ID for live mode
+- Instagram **Business** or **Creator** account (Personal accounts aren't supported by Instagram's API)
 
-## Install
+### Manual install (if you don't want the launchd service)
 
 ```bash
+git clone https://github.com/kaiden-stowell/instagram-hub.git
 cd instagram-hub
 npm install
-cp .env.example .env   # leave INSTAGRAM_TOKEN blank for mock mode
+cp .env.example .env
 npm start
 ```
-
-Open <http://127.0.0.1:12790>.
 
 ## Views
 
