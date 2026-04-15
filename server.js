@@ -41,6 +41,66 @@ function broadcast(event, data) {
 instagram.setBroadcast(broadcast);
 runner.setBroadcast(broadcast);
 
+// ── Integration manifest ───────────────────────────────────────────────
+// Returned to anything that wants to talk to us (e.g., agent-hub agents).
+// Shape matches agent-hub's buildIntegrationsContext ({ name, desc, usage })
+// plus structured metadata for future discovery tooling.
+app.get('/api/integration-manifest', (req, res) => {
+  const baseUrl = `http://${HOST}:${PORT}`;
+  const mode = instagram.getMode();
+  const stats = db.getStats();
+  res.json({
+    kind: 'local-hub',
+    slug: 'instagram-hub',
+    name: 'Instagram Hub',
+    version: getLocalVersion(),
+    base_url: baseUrl,
+    mode,
+    status: {
+      connected: instagram.isConnected(),
+      followers: stats.followers,
+      unread_dms: stats.unread,
+      posts: stats.posts,
+    },
+    desc: `Local Instagram account control plane — read/write DMs, posts, and analytics. Currently in ${mode.toUpperCase()} mode.`,
+    usage: [
+      `Instagram Hub is running locally at ${baseUrl}.`,
+      `Use Bash with curl to read or act on the user's Instagram account. All endpoints return JSON.`,
+      ``,
+      `READ:`,
+      `  curl -s ${baseUrl}/api/stats                 # follower counts, reach, unread, etc.`,
+      `  curl -s ${baseUrl}/api/accounts              # connected IG account(s)`,
+      `  curl -s ${baseUrl}/api/posts                 # recent posts with like/comment counts`,
+      `  curl -s ${baseUrl}/api/threads               # DM threads`,
+      `  curl -s ${baseUrl}/api/threads/<id>          # a specific thread + its messages`,
+      `  curl -s "${baseUrl}/api/analytics?limit=30"  # analytics snapshots`,
+      ``,
+      `WRITE:`,
+      `  curl -s -X POST ${baseUrl}/api/threads/<id>/send \\`,
+      `    -H 'Content-Type: application/json' -d '{"text":"hello"}'  # send a DM`,
+      `  curl -s -X POST ${baseUrl}/api/threads/<id>/read              # mark a thread read`,
+      `  curl -s -X POST ${baseUrl}/api/refresh                        # force a pull from the provider`,
+      ``,
+      `When the user asks something about their Instagram account — "how many followers",`,
+      `"summarize my recent DMs", "reply to that message from X", "how did my last post do" —`,
+      `start by calling /api/stats and /api/posts (and /api/threads for DM questions) via curl,`,
+      `then answer based on the JSON. Prefer this over asking the user for IG credentials.`,
+    ].join('\n'),
+    endpoints: [
+      { method: 'GET',    path: '/api/status' },
+      { method: 'GET',    path: '/api/stats' },
+      { method: 'GET',    path: '/api/accounts' },
+      { method: 'GET',    path: '/api/posts' },
+      { method: 'GET',    path: '/api/threads' },
+      { method: 'GET',    path: '/api/threads/:id' },
+      { method: 'POST',   path: '/api/threads/:id/read' },
+      { method: 'POST',   path: '/api/threads/:id/send',  body: '{text}' },
+      { method: 'GET',    path: '/api/analytics' },
+      { method: 'POST',   path: '/api/refresh' },
+    ],
+  });
+});
+
 // ── Version + update ───────────────────────────────────────────────────
 const REPO_API_URL = 'https://api.github.com/repos/kaiden-stowell/instagram-hub/contents/version.json?ref=main';
 let cachedRemoteVersion = null;
