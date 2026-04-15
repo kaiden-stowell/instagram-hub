@@ -293,7 +293,7 @@ app.post('/api/settings/composio/connect-instagram', async (req, res) => {
     console.error('[settings] connect-instagram failed:', e.message);
     res.status(502).json({
       error: e.message,
-      fallback_url: 'https://app.composio.dev/apps/instagram',
+      fallback_url: 'https://dashboard.composio.dev/',
     });
   }
 });

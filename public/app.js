@@ -274,13 +274,13 @@ async function loadSettings() {
 
   if (s.configured) {
     pill.textContent = 'KEY SET'; pill.className = 'pill ok';
-    keyIn.placeholder = s.keyMasked || 'sk_••••';
+    keyIn.placeholder = s.keyMasked || 'ck_••••';
     disc.hidden = false;
     connect.disabled = false;
     refresh.disabled = false;
   } else {
     pill.textContent = 'NOT CONFIGURED'; pill.className = 'pill warn';
-    keyIn.placeholder = 'sk_...';
+    keyIn.placeholder = 'ck_...';
     disc.hidden = true;
     connect.disabled = true;
     refresh.disabled = true;
@@ -304,6 +304,9 @@ document.getElementById('btn-save-composio').addEventListener('click', async () 
   const apiKey = document.getElementById('composio-key').value.trim();
   const userId = document.getElementById('composio-user').value.trim() || 'default';
   if (!apiKey) { alert('Paste your Composio API key first.'); return; }
+  if (!apiKey.startsWith('ck_')) {
+    if (!confirm('That doesn\'t look like a Composio client key (expected ck_...). Save anyway?')) return;
+  }
   try {
     const r = await POST('/api/settings/composio', { apiKey, userId });
     document.getElementById('composio-key').value = '';

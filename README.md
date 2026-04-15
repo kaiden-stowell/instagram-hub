@@ -74,18 +74,18 @@ The integration-module pattern (`init`, `setBroadcast`, `sendDirectMessage`,
 
 Composio handles the Meta OAuth dance for you — no Meta developer app required.
 
-1. Create a Composio account at <https://app.composio.dev> and grab an API key
-   from the Developers page.
-2. In the Composio dashboard, connect your Instagram Business/Creator account
-   (Apps → Instagram → Connect).
-3. Paste the key into `.env`:
-   ```
-   COMPOSIO_API_KEY=sk_...
-   COMPOSIO_USER_ID=default
-   ```
-4. Restart — `npm start`. On boot you'll see `Mode: COMPOSIO` and the server
-   will pull profile, media (30 most recent), insights (last 30 days),
-   conversations, and messages every 60s.
+1. Create a Composio account at <https://dashboard.composio.dev> and copy your
+   client key (starts with `ck_`) from the Developers page.
+2. Open the Instagram Hub dashboard → **Settings** tab → paste the key and
+   click **Save**.
+3. Click **Connect Instagram** — this takes you to the real Instagram OAuth
+   page (`instagram.com/accounts/login/?force_authentication&platform_app_id=…`).
+   Authorize with a Business or Creator account.
+4. Back in Settings, click **Refresh now**. You should see Mode flip to
+   COMPOSIO and real profile/posts/insights populate within a few seconds.
+
+From then on the server will pull profile, media (30 most recent), insights
+(last 30 days), conversations, and messages every 60s.
 
 Behind the scenes, instagram-hub executes these Composio tools directly via
 its REST API (`backend.composio.dev/api/v3/tools/execute/<slug>`):
