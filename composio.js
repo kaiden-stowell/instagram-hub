@@ -83,4 +83,22 @@ async function listConnections(toolkit) {
   }
 }
 
-module.exports = { isEnabled, execute, listConnections };
+// Initiate a new OAuth connection for a toolkit. Returns { redirect_url } on success.
+async function initiateConnection(toolkit) {
+  const userId = process.env.COMPOSIO_USER_ID?.trim() || 'default';
+  // Composio v3 uses different endpoints across SDKs — try the common ones.
+  const candidates = [
+    { path: '/api/v3/connected_accounts/link', body: { toolkit, user_id: userId } },
+    { path: '/api/v3/toolkits/' + toolkit + '/connect', body: { user_id: userId } },
+  ];
+  for (const c of candidates) {
+    try {
+      const resp = await _request('POST', c.path, c.body);
+      const url = resp?.redirect_url || resp?.data?.redirect_url || resp?.url;
+      if (url) return { redirect_url: url };
+    } catch {}
+  }
+  throw new Error('Could not initiate Composio connection — open app.composio.dev and add Instagram manually.');
+}
+
+module.exports = { isEnabled, execute, listConnections, initiateConnection };

@@ -39,6 +39,7 @@ function showView(name) {
   if (name === 'posts')     loadPosts();
   if (name === 'analytics') loadAnalytics();
   if (name === 'chat')      loadChat();
+  if (name === 'settings')  loadSettings();
 }
 
 document.querySelectorAll('.nav-link').forEach(el => {
@@ -240,6 +241,98 @@ document.getElementById('btn-clear-chat').addEventListener('click', async () => 
   await DEL('/api/chat');
   state.chats = [];
   renderChat();
+});
+
+// ── Settings / Composio ────────────────────────────────────────────────
+async function loadSettings() {
+  const s = await GET('/api/settings/composio');
+  const pill   = document.getElementById('composio-pill');
+  const keyIn  = document.getElementById('composio-key');
+  const userIn = document.getElementById('composio-user');
+  const disc   = document.getElementById('btn-disconnect-composio');
+  const connect = document.getElementById('btn-connect-ig');
+  const refresh = document.getElementById('btn-refresh-ig');
+  const igStatus = document.getElementById('ig-status');
+
+  userIn.value = s.userId || 'default';
+
+  if (s.configured) {
+    pill.textContent = 'KEY SET'; pill.className = 'pill ok';
+    keyIn.placeholder = s.keyMasked || 'sk_••••';
+    disc.hidden = false;
+    connect.disabled = false;
+    refresh.disabled = false;
+  } else {
+    pill.textContent = 'NOT CONFIGURED'; pill.className = 'pill warn';
+    keyIn.placeholder = 'sk_...';
+    disc.hidden = true;
+    connect.disabled = true;
+    refresh.disabled = true;
+  }
+
+  if (!s.configured) {
+    igStatus.innerHTML = '<span class="pill warn">Save a Composio API key to continue.</span>';
+  } else if (s.instagramConnected) {
+    const c = s.connections[0] || {};
+    igStatus.innerHTML = `<span class="pill ok">CONNECTED</span> <span style="color:var(--text-dim);font-size:12px;margin-left:8px">Mode: <strong style="color:var(--text)">${(s.mode || '').toUpperCase()}</strong></span>`;
+  } else {
+    igStatus.innerHTML = '<span class="pill warn">NO INSTAGRAM LINKED</span> <span style="color:var(--text-dim);font-size:12px;margin-left:8px">Click Connect Instagram below.</span>';
+  }
+
+  if (s.error) {
+    igStatus.innerHTML += `<div class="help" style="color:var(--err);margin-top:8px">${escape(s.error)}</div>`;
+  }
+}
+
+document.getElementById('btn-save-composio').addEventListener('click', async () => {
+  const apiKey = document.getElementById('composio-key').value.trim();
+  const userId = document.getElementById('composio-user').value.trim() || 'default';
+  if (!apiKey) { alert('Paste your Composio API key first.'); return; }
+  try {
+    const r = await POST('/api/settings/composio', { apiKey, userId });
+    document.getElementById('composio-key').value = '';
+    document.getElementById('mode-badge').textContent = (r.mode || 'mock').toUpperCase() + ' MODE';
+    showBanner('ok', `Composio key saved — mode: ${r.mode.toUpperCase()}`);
+    setTimeout(clearBanner, 2500);
+    loadSettings();
+  } catch (e) { alert('Save failed: ' + e.message); }
+});
+
+document.getElementById('btn-disconnect-composio').addEventListener('click', async () => {
+  if (!confirm('Remove the Composio API key? The dashboard will fall back to mock mode.')) return;
+  await DEL('/api/settings/composio');
+  loadSettings();
+});
+
+document.getElementById('btn-connect-ig').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-connect-ig');
+  btn.disabled = true;
+  try {
+    const r = await POST('/api/settings/composio/connect-instagram');
+    if (r.redirect_url) {
+      window.open(r.redirect_url, '_blank', 'noopener');
+      showBanner('info', 'Complete the Instagram auth in the new tab, then click Refresh here.');
+      setTimeout(clearBanner, 6000);
+    }
+    if (r.error) alert(r.error);
+  } catch (e) { alert('Connect failed: ' + e.message); }
+  btn.disabled = false;
+});
+
+document.getElementById('btn-refresh-ig').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-refresh-ig');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+  try {
+    await POST('/api/settings/composio/refresh');
+    showBanner('ok', 'Pulled latest data from Composio.');
+    setTimeout(clearBanner, 2000);
+    loadSettings();
+  } catch (e) {
+    alert('Refresh failed: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Refresh now';
 });
 
 // ── Refresh button ─────────────────────────────────────────────────────

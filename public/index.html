@@ -33,6 +33,9 @@
       <li class="nav-link" data-view="chat">
         <span class="icon">✦</span> Ask Claude
       </li>
+      <li class="nav-link" data-view="settings">
+        <span class="icon">⚙</span> Settings
+      </li>
     </ul>
 
     <div class="version" id="version">
@@ -100,6 +103,48 @@
       <div class="chart" id="chart-reach"></div>
       <h2>Snapshots</h2>
       <table class="analytics-table" id="analytics-table"></table>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" data-view="settings" hidden>
+      <header class="view-header"><h1>Settings</h1></header>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Composio</h2>
+            <div class="card-sub">Connect Instagram via Composio — no Meta developer app required.</div>
+          </div>
+          <span class="pill" id="composio-pill">—</span>
+        </div>
+
+        <div class="form-row">
+          <label>API key</label>
+          <input type="password" id="composio-key" placeholder="sk_..." autocomplete="off" />
+          <div class="help">Grab one from <a href="https://app.composio.dev/developers" target="_blank" rel="noopener">app.composio.dev/developers</a>.</div>
+        </div>
+
+        <div class="form-row">
+          <label>User ID</label>
+          <input type="text" id="composio-user" value="default" autocomplete="off" />
+          <div class="help">Identifier Composio associates the connection with. Leave as <code>default</code> unless you manage multiple users.</div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn" id="btn-save-composio">Save key</button>
+          <button class="btn btn-subtle" id="btn-disconnect-composio" hidden>Disconnect</button>
+        </div>
+
+        <hr class="divider" />
+
+        <h3 class="section-title">Instagram account</h3>
+        <div id="ig-status">Checking…</div>
+        <div class="form-actions">
+          <button class="btn" id="btn-connect-ig" disabled>Connect Instagram</button>
+          <button class="btn btn-subtle" id="btn-refresh-ig" disabled>Refresh now</button>
+        </div>
+        <div class="help">Needs a Business or Creator account. Personal accounts are not supported by Instagram's API.</div>
+      </div>
     </section>
 
     <!-- Chat -->

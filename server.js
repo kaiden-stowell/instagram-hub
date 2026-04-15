@@ -11,6 +11,8 @@ const path       = require('path');
 const db        = require('./db');
 const instagram = require('./instagram');
 const runner    = require('./runner');
+const composio  = require('./composio');
+const settings  = require('./settings');
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = parseInt(process.env.PORT || '12790', 10);
@@ -225,6 +227,76 @@ app.get('/api/analytics', (req, res) => {
 
 // ── Manual refresh (live mode) ─────────────────────────────────────────
 app.post('/api/refresh', async (req, res) => {
+  try {
+    await instagram.fetchAll();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Settings / Composio connect ────────────────────────────────────────
+app.get('/api/settings/composio', async (req, res) => {
+  const env = settings.readEnv();
+  const hasKey = Boolean(env.COMPOSIO_API_KEY);
+  let connections = [];
+  let error = null;
+  if (hasKey) {
+    try { connections = await composio.listConnections('instagram'); }
+    catch (e) { error = e.message; }
+  }
+  const active = connections.find(c => (c.status || '').toLowerCase() === 'active');
+  res.json({
+    configured: hasKey,
+    keyMasked: settings.maskKey(env.COMPOSIO_API_KEY || ''),
+    userId: env.COMPOSIO_USER_ID || 'default',
+    mode: instagram.getMode(),
+    instagramConnected: Boolean(active),
+    connections: connections.map(c => ({
+      id: c.id, status: c.status, toolkit: c.toolkit_slug || 'instagram',
+      created_at: c.created_at,
+    })),
+    error,
+  });
+});
+
+app.post('/api/settings/composio', async (req, res) => {
+  try {
+    const { apiKey, userId } = req.body || {};
+    if (!apiKey?.trim()) return res.status(400).json({ error: 'apiKey required' });
+    settings.writeEnv({
+      COMPOSIO_API_KEY: apiKey.trim(),
+      COMPOSIO_USER_ID: (userId || 'default').trim(),
+    });
+    // Hot-reload the integration (no launchd restart needed)
+    instagram.stop();
+    instagram.init();
+    broadcast('settings:updated', { mode: instagram.getMode() });
+    res.json({ ok: true, mode: instagram.getMode() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/settings/composio', (req, res) => {
+  settings.writeEnv({ COMPOSIO_API_KEY: '' });
+  instagram.stop();
+  instagram.init();
+  broadcast('settings:updated', { mode: instagram.getMode() });
+  res.json({ ok: true, mode: instagram.getMode() });
+});
+
+// Initiate a new Instagram OAuth connection via Composio.
+// Returns a redirect_url the user opens to authorize.
+app.post('/api/settings/composio/connect-instagram', async (req, res) => {
+  try {
+    if (!composio.isEnabled()) return res.status(400).json({ error: 'Set your Composio API key first.' });
+    const r = await composio.initiateConnection('instagram');
+    res.json({ redirect_url: r.redirect_url });
+  } catch (e) {
+    console.error('[settings] connect-instagram failed:', e.message);
+    res.json({ redirect_url: 'https://app.composio.dev/apps/instagram', error: e.message });
+  }
+});
+
+// Force a full fetch right now (useful right after connecting)
+app.post('/api/settings/composio/refresh', async (req, res) => {
   try {
     await instagram.fetchAll();
     res.json({ ok: true });
